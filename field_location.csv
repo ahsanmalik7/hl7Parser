@@ -1,0 +1,16 @@
+location,MSH-6
+patienId, PID-2
+patient_l_name, PID-5.1
+patient_f_name, PID-5.2
+email, PID-13.4
+sampleId, ORC-2
+reportedDate, OBR-14
+panelId, OBR-4.1
+panelName, OBR-4.2
+labTestId, OBX-3.1
+labTestName, OBX-3.2
+observationValue, OBX-5
+units, OBX-6
+referenceRange, OBX-7
+abnormalFlag, OBX-8
+resultComments, NTE-3
