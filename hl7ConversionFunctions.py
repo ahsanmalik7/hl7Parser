@@ -1,9 +1,7 @@
 import re
 import pandas as pd
 import sys
-sys.path.insert(1, '../AllHelpers')
-# from logWriterHelper import  LogWriter
-
+sys.path.insert(1, '../')
 class HL7_Conversion():
     def __init__(self):
         pass
@@ -281,9 +279,6 @@ class HL7_Conversion():
         if current_obr is not None:
             obx_counts[current_obr] = current_obx_count
 
-        # for obr, obx_count in obx_counts.items():
-        #     print(f"{obr}: {obx_count} OBX segments")
-
         return obx_counts
 
     def read_hl7(self, file_path, data_location):
@@ -319,20 +314,9 @@ class HL7_Conversion():
                 data.append(extracted_data)
                 extractedDataDict = {}
 
-            if hl7_segments[i][:3] == "OBR":
-                print("obr_count",obx_counts[hl7_segments[i]])
-            # if hl7_segments[i][:3] == "OBR" and obx_counts[hl7_segments[i]] == 1:
-            #     obrFlag = True
-            # elif hl7_segments[i][:3] == "OBR" and obx_counts[hl7_segments[i]] >= 2:
-            #     obrFlag = False
+            # if hl7_segments[i][:3] == "OBR":
+            #     print("obr_count",obx_counts[hl7_segments[i]])
 
-            # if hl7_segments[i][:3] == "OBR" and obrFlag:
-            #     import copy
-            #     new_data = copy.copy(extractedDataDict)
-            #     data_test.append(new_data)
-            #     listIndex += 1
-            #     # print('obr found',listIndex)
-            #     # print(new_data)
 
             for key, value in data_location.items():
                 if key not in columns:
@@ -346,7 +330,6 @@ class HL7_Conversion():
 
                     if extracted_data is None:
                         extracted_data = ""
-
 
                     # if extracted_data is not None:
                     if "^" in extracted_data or "&" in extracted_data or "|" in extracted_data:
@@ -376,15 +359,8 @@ class HL7_Conversion():
                             extractedDataDict[key] = extracted_data
 
                     else:
-                        # if len(data_test) > 0 and len(data_test) == listIndex + 1:
-                        #     # print(hl7_segments[i][:3])
-                        #     data_test[listIndex][key] = extracted_data
-                        #     # print(data_test)
-                        #
-                        #     extractedDataDict[key] = extracted_data
-                        # else:
                             extractedDataDict[key] = extracted_data
-            # print(extractedDataDict)
+
             if hl7_segments[i][:3] == "OBX":
                 import copy
                 print("pushing data to list")
@@ -395,26 +371,24 @@ class HL7_Conversion():
 
         df = pd.DataFrame(data_test)
         return df
+def getFieldLocations():
+    import csv
+    dict_from_csv = {}
+    count = 0
+    with open('field_location.csv', mode='r') as inp:
+        reader = csv.reader(inp)
 
-# def getFieldLocations():
-#     import csv
-#     dict_from_csv = {}
-#     count = 0
-#     with open('field_location.csv', mode='r') as inp:
-#         reader = csv.reader(inp)
-#
-#         for line in reader:
-#             if len(line) > 1:
-#                 count += 1
-#                 dict_from_csv[line[0].strip(' ')] = line[1].strip(' ')
-#
-#     return dict_from_csv
-#
-# fieldLocations = getFieldLocations()
-# rcvdFilePath = 'test.hl7'
-# fetch_data = HL7_Conversion().read_hl7(rcvdFilePath, fieldLocations)
-# resultData = fetch_data.to_dict('records')
-# test = [d['labTestId'] for d in resultData if 'labTestId' in d]
-# print(test)
-# for x in resultData:
-#     print(x)
+        for line in reader:
+            if len(line) > 1:
+                count += 1
+                dict_from_csv[line[0].strip(' ')] = line[1].strip(' ')
+
+    return dict_from_csv
+
+fieldLocations = getFieldLocations()
+rcvdFilePath = 'test.hl7'
+fetch_data = HL7_Conversion().read_hl7(rcvdFilePath, fieldLocations)
+resultData = fetch_data.to_dict('records')
+test = [d['labTestId'] for d in resultData if 'labTestId' in d]
+for result in resultData:
+    print(result)
