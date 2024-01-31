@@ -1,13 +1,13 @@
 import re
 import pandas as pd
 import sys
-sys.path.insert(1, '../')
-class HL7_Conversion():
+sys.path.insert(1, '../AllHelpers')
+# from logWriterHelper import  LogWriter
+
+class HL7Parser():
     def __init__(self):
         pass
     def findnth(self,haystack, needle, n):
-        if haystack is None:
-            return -1
         parts= haystack.split(needle, n+1)
 
 
@@ -103,7 +103,7 @@ class HL7_Conversion():
                     updated_composite = hl7_segment[:composite_index[0] + 1] + updated_composite + hl7_segment[
                                                                                                    composite_index[1]:]
                 return updated_composite
-            # LogWriter("").write('...')
+            LogWriter("").write('...')
 
         else:
             # print("----",composite_data)
@@ -254,33 +254,6 @@ class HL7_Conversion():
         # print("composite index: ",[start_index,end_index])
         return [start_index,end_index]
 
-
-    def count_OBX_per_OBR(self, hl7List):
-        # Initialize a dictionary to store the counts
-        obx_counts = {}
-
-        current_obr = None  # Keep track of the current OBR segment
-        current_obx_count = 0  # Initialize the OBX count for the current OBR
-
-        for line in hl7List:
-            segments = line
-
-            if segments[:3] == "OBR":
-
-                if current_obr is not None:
-                    obx_counts[current_obr] = current_obx_count
-
-                current_obr = line
-                current_obx_count = 0
-            elif segments[:3] == "OBX":
-                current_obx_count += 1
-
-        # Store the OBX count for the last OBR segment
-        if current_obr is not None:
-            obx_counts[current_obr] = current_obx_count
-
-        return obx_counts
-
     def read_hl7(self, file_path, data_location):
         hl7_segments = []
         with open(file_path) as hl7_file:
@@ -291,32 +264,26 @@ class HL7_Conversion():
         skip_char = ('FHS', 'BHS', 'BTS', 'FTS')
 
         for key, value in data_location.items():
+
             if "MSH" in value:
                 location = value.split("-")[1].split(".",1)
                 update_segment = int(location[0]) - 1
+
                 if len(location) == 1:
                     location = "MSH-" + str(update_segment)
                 elif len(location) == 2:
                     location = "MSH-" + str(update_segment)+"." +location[1]
-                data_location[key] = location
+
+                data_location[key]= location
+
 
         hl7_segments[:] = [item for item in hl7_segments if not item.startswith(skip_char)]
-
         extractedDataDict = {}
-        data_test = []
-        obr_count = sum(1 for segment in hl7_segments if segment.startswith("OBR"))
-        obx_count = sum(1 for segment in hl7_segments if segment.startswith("OBX"))
-        obx_counts = self.count_OBX_per_OBR(hl7_segments)
-        obrFlag = False
-        listIndex = -1
         for i in range(0, len(hl7_segments)):
             if hl7_segments[i][:3] == "MSH" and i > 0:
+
                 data.append(extracted_data)
                 extractedDataDict = {}
-
-            # if hl7_segments[i][:3] == "OBR":
-            #     print("obr_count",obx_counts[hl7_segments[i]])
-
 
             for key, value in data_location.items():
                 if key not in columns:
@@ -324,53 +291,38 @@ class HL7_Conversion():
 
                 compare_value = value.split("-")
                 if hl7_segments[i][:3] == compare_value[0]:
-                    # print(compare_value)
+
                     location = compare_value[1]
                     extracted_data = self.extract_data_from_hl7(hl7_segments[i], str(location))
 
-                    if extracted_data is None:
-                        extracted_data = ""
+                    if extracted_data is not None:
+                        if "^" in extracted_data or "&" in extracted_data or "|" in extracted_data:
+                            extracted_data = extracted_data.replace("^", "").replace("&", "").replace("|", "")
 
-                    # if extracted_data is not None:
-                    if "^" in extracted_data or "&" in extracted_data or "|" in extracted_data:
-                        extracted_data = extracted_data.replace("^", "").replace("&", "").replace("|", "")
+                        # if hl7_segments[i][:3] == "OBR":
+                        #     print("--->", key, extracted_data)
 
+                        if key in extractedDataDict:
+                            # print('already exist')
+                            if extracted_data not in extractedDataDict[key]:
+                                extractedDataDict[key] = ";".join([extractedDataDict[key],extracted_data])
 
-                    if hl7_segments[i][:3] == "NTE" and 'CODE^V213' in hl7_segments[i]:
-                        for dictionary in data_test:
-                            if key not in dictionary:
-                               dictionary[key] = extracted_data
-                            elif key in dictionary:
-                                if isinstance(dictionary[key], list):
-                                    dictionary[key].append(extracted_data)
-                                else:
-                                    dictionary[key] = [dictionary[key], extracted_data]
-
-                    elif hl7_segments[i][:3] == "NTE" and 'CODE^V213' not in hl7_segments[i]:
-                        if len(data_test) > 0 and len(data_test) == listIndex + 1:
-                            if 'obxComments' not in  data_test[listIndex]:
-                                data_test[listIndex]['obxComments'] = extracted_data
-                            elif 'obxComments' in  data_test[listIndex]:
-                                if isinstance(data_test[listIndex]['obxComments'], list):
-                                    data_test[listIndex]['obxComments'].append(extracted_data)
-                                else:
-                                    data_test[listIndex]['obxComments'] = [data_test[listIndex]['obxComments'], extracted_data]
                         else:
                             extractedDataDict[key] = extracted_data
 
                     else:
-                            extractedDataDict[key] = extracted_data
 
-            if hl7_segments[i][:3] == "OBX":
-                import copy
-                print("pushing data to list")
-                new_data = copy.copy(extractedDataDict)
-                data_test.append(new_data)
-                listIndex += 1
+                        extractedDataDict[key] = ""
 
 
-        df = pd.DataFrame(data_test)
+            if  i == len(hl7_segments)-1:
+
+                data.append(extractedDataDict)
+
+        df = pd.DataFrame(data)
+
         return df
+
 def getFieldLocations():
     import csv
     dict_from_csv = {}
@@ -386,9 +338,26 @@ def getFieldLocations():
     return dict_from_csv
 
 fieldLocations = getFieldLocations()
-rcvdFilePath = 'test.hl7'
-fetch_data = HL7_Conversion().read_hl7(rcvdFilePath, fieldLocations)
-resultData = fetch_data.to_dict('records')
-test = [d['labTestId'] for d in resultData if 'labTestId' in d]
-for result in resultData:
-    print(result)
+tempFiles = ['test1.out','test2.out','test3.out']
+extractedData = pd.DataFrame()
+for eachTempFile in tempFiles:
+
+    fetch_data = HL7Parser().read_hl7(eachTempFile, fieldLocations.copy())
+    extractedData = pd.concat([extractedData, fetch_data])
+extractedData = extractedData.to_dict('records')
+for eachData in extractedData:
+    print(eachData)
+
+keys_to_concatenate = ['labtestIds', 'dx_code']
+concatenatedResults = {}
+
+for key in keys_to_concatenate:
+    values = [d.get(key, '') for d in allDataToBePushed]
+    distinct_values = list(set(values))
+    if len(distinct_values) == 1:
+        concatenatedResults[key] = distinct_values[0]
+    else:
+        concatenatedResults[key] = ';'.join(distinct_values)
+
+
+print(concatenatedResults)
